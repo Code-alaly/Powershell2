@@ -77,7 +77,7 @@ Write-Output "`n<<<`tIP Address Assignment`t>>>`n"
 while ($true) {
     $ip = Read-Host -Prompt "Do you have the ip to register? (if no, just leave blank and press enter)"
     if (($null -eq $ip) -or ($ip -eq '')) {
-        $ipd = ''
+        $ipString = ''
         break
     }
     else {
@@ -87,7 +87,7 @@ while ($true) {
             Write-Host "Looks like that wasn't a valid IP Address, go ahead and try again"
         }
         else {
-            $ipd = $ip + '; '
+            $ipString = $ip + '; '
             break
         }
     }
@@ -102,14 +102,14 @@ function userinfo {
     $url = 'https://new-psearch.ics.uci.edu/people/' + $person
     $re_request = Invoke-WebRequest $url
 
-    $myarray = $re_request.AllElements 
+    $netidWebPage = $re_request.AllElements 
 
-    $stuff = $myarray | Where-Object { $_.outerhtml -ceq "<SPAN class=label>$trait</SPAN>" -or $_.outerHTML -ceq "<SPAN class=table_label>$trait</SPAN>" }
+    $netIDProperties = $netidWebPage | Where-Object { $_.outerhtml -ceq "<SPAN class=label>$trait</SPAN>" -or $_.outerHTML -ceq "<SPAN class=table_label>$trait</SPAN>" }
  
 
-    $name = ([array]::IndexOf($myarray, $stuff)) + 1
+    $name = ([array]::IndexOf($netidWebPage, $netIDProperties)) + 1
 
-    $myarray[$name].innerText
+    $netidWebPage[$name].innerText
 }
 
 #grabs the info from the netid
@@ -210,7 +210,7 @@ if ($macwired.name -match "real") {
 else {
     Write-Host `n"********************Wired Mac Address*************************"`n
 }
-$Clip = "$macDoc,$ip,ADCOMDSS,$name; Wired; $dockType$dockST$model; $ST; $ipd$info"
+$Clip = "$macDoc,$ip,ADCOMDSS,$name; Wired; $dockType$dockST$model; $ST; $ipString$info"
 
 Write-Host "$Clip"`n
  
@@ -220,7 +220,7 @@ Set-Clipboard -Value $Clip
 if ($deviceType -eq "l") {
     Write-Host `n"*******************Wireless Mac Address********************"`n
     
-    $Wireless = "$WirelessMac,,ADCOMDSS,$name; Wireless; $model; $ST; $ipd$info"
+    $Wireless = "$WirelessMac,,ADCOMDSS,$name; Wireless; $model; $ST; $ipString$info"
 
     Write-Host $Wireless`n
 
@@ -228,7 +228,7 @@ if ($deviceType -eq "l") {
     if ($macwired.name -match "real" -and $macEth) {
         Write-Host `n"********************Wired Mac Address*************************"`n
 
-        $wired = "$macEth,,ADCOMDSS,$name; Wired; $model; $ST; $ipd$info"
+        $wired = "$macEth,,ADCOMDSS,$name; Wired; $model; $ST; $ipString$info"
     
         Write-Host $wired`n
 
