@@ -64,9 +64,9 @@ while ($true) {
 #Testing
 
 $trim = whoami.exe
-$trim.ToString()
-$tmpstring = $trim.Replace("-wa","")  
-$your_name=$tmpstring.Replace("ad\","")
+$trim.ToString() | Out-Null
+$tmpstring = $trim.Replace("-wa", "")  
+$your_name = $tmpstring.Replace("ad\", "")
 #function that goes through the page to find the right element for the data required
 
 Write-Output "`n<<<`tIP Address Assignment`t>>>`n"
@@ -77,7 +77,7 @@ Write-Output "`n<<<`tIP Address Assignment`t>>>`n"
 while ($true) {
     $ip = Read-Host -Prompt "Do you have the ip to register? (if no, just leave blank and press enter)"
     if (($null -eq $ip) -or ($ip -eq '')) {
-        $ipd = ''
+        $ipString = ''
         break
     }
     else {
@@ -87,7 +87,7 @@ while ($true) {
             Write-Host "Looks like that wasn't a valid IP Address, go ahead and try again"
         }
         else {
-            $ipd = $ip + '; '
+            $ipString = $ip + '; '
             break
         }
     }
@@ -102,14 +102,14 @@ function userinfo {
     $url = 'https://new-psearch.ics.uci.edu/people/' + $person
     $re_request = Invoke-WebRequest $url
 
-    $myarray = $re_request.AllElements 
+    $netidWebPage = $re_request.AllElements 
 
-    $stuff = $myarray | Where-Object { $_.outerhtml -ceq "<SPAN class=label>$trait</SPAN>" -or $_.outerHTML -ceq "<SPAN class=table_label>$trait</SPAN>" }
+    $netIDProperties = $netidWebPage | Where-Object { $_.outerhtml -ceq "<SPAN class=label>$trait</SPAN>" -or $_.outerHTML -ceq "<SPAN class=table_label>$trait</SPAN>" }
  
 
-    $name = ([array]::IndexOf($myarray, $stuff)) + 1
+    $name = ([array]::IndexOf($netidWebPage, $netIDProperties)) + 1
 
-    $myarray[$name].innerText
+    $netidWebPage[$name].innerText
 }
 
 #grabs the info from the netid
@@ -125,9 +125,7 @@ $info = "For $UCINetID in $dep; at $loc. Inputted by $me."
 
 #removes un-needed output by sending it to tmp file and deleting it
 
-Invoke-WebRequest 'http://apps.oit.uci.edu/mobileaccess/admin/mac/add_bulk.php' | Out-File C:\tmpppppppp.txt
-
-Remove-Item -Path C:\tmpppppppp.txt
+Invoke-WebRequest 'http://apps.oit.uci.edu/mobileaccess/admin/mac/add_bulk.php' | Out-File "Recycle Bin"
 
 if (!(Get-Process -Name iexplore -ErrorAction SilentlyContinue)) {
     Start-Process 'C:\Program Files (x86)\Google\Chrome\Application\chrome.exe' -ArgumentList 'http://apps.oit.uci.edu/mobileaccess/admin/mac/add_bulk.php'
@@ -135,84 +133,54 @@ if (!(Get-Process -Name iexplore -ErrorAction SilentlyContinue)) {
 
 #get's mac address of ethernet adapter that's active and isn't a virtual connection.
 
+
 $macwired = (get-wmiobject win32_networkadapter -filter "netconnectionstatus = 2" | Where-Object -Property Name -NotMatch "VM" | Where-Object -Property netconnectionid -Match "Ethernet")
 $macDoc = $macwired.MACAddress
 #checks if the mac is for a docking station or not.
 #perhaps here we would want to tell the user to plug it into the dock. and then if they want to put in 2 diff ips for dock and eth, the one where net conn statues = 2
 #will auto go to eth, and the one where net conn status doesn't = 2 but still says eth will go to the laptop wired nic.
-if ($macwired.name -match "real") {
-    $macEth = (get-wmiobject win32_networkadapter | Where-Object -property name -Match 'Ethernet').macAddress
-    
-    $dock = " Dock connection;"
 
-    #starts dell command update silently
-    
-    if (!(Test-Path 'C:\Program Files (x86)\Dell\CommandUpdate')) {
 
-        Write-Host 'Please wait, retrieving dock information'
-    
-        Start-Process '\\ldcore\Files\Packages\Dell\Dell-Command-Update_DDVDP_WIN_2.4.0_A00.EXE' -ArgumentList "/s" -wait -NoNewWindow
-    }
-    #runs the update function untill it grabs the scan data, then it stops
-
-    Start-Process  'C:\Program Files (x86)\Dell\CommandUpdate\dcu-cli.exe' -WindowStyle Hidden
-
-    while (!(Test-Path 'C:\ProgramData\Dell\CommandUpdate\inventory.xml')) { Start-Sleep 5 }
-
-    Get-Process | Where-Object { $_.path -like "*dcu*" } | Stop-Process
-
-    #goes through the scan data to determine the dock type, and setvicetag if avaliable
-
-    [xml]$xml = Get-Content -path "C:\ProgramData\Dell\CommandUpdate\inventory.xml"
-
-    #$xml.getType().FullName
-
-    $dock = $xml.SVMInventory.device | Where-Object { $_.application.componentType -match 'FRMW' } | Where-Object { $_.application.display -match 'WD' }
-    $dockType = $dock.display
-    $dockST = $dock.serviceTag
-    
-    #Need to test this peice on a WD15 Dock still.
-
-    if ($dockType) {
-        if ($dockType -inotlike 'Dock') {
-            $dockType = 'Dock Model: ' + $dockType
-        }
-
-        $dockType = $dockType + '; '
-  
-        if ($dockST) {
-            $dockST = 'Dock ST: ' + $dockST + '; '
-            $later = $true
-        }
-
-    }
-}
 
 #if it's a laptop, gets the wifi mac address as well.
 if ($deviceType -eq "l") {
-    $WirelessMac = (get-wmiobject win32_networkadapter | Where-Object -Property Name -NotMatch "VM" | Where-Object -Property Name -Match "Wireless").MacAddress
+
+    $connections = Get-NetAdapter 
+
+    $WirelessMac = ($connections | Where-Object Name -Match Wireless).MacAddress
+
+    $laptopMacAddresses = $connections | Where-Object Name -Match Ethernet | Where-Object InterfaceDescription -NotMatch "Cisco AnyConnect"
+
+    $dockQuestion = Read-Host -prompt "`nDo you have A Doc to register? If so, please make sure it is connected [y/n]"
+
+    if ($dockQuestion -eq 'y') {
+
+        if (($laptopMacAddresses) -ge 2 ) {
+            $macDoc = ($laptopMacAddresses | Where-Object Status -Match Up).MacAddress
+            $macEth = ($laptopMacAddresses | Where-Object Status -Match Disconnected).MacAddress
+        }
+       
+    }
 }
+
 
 #Grab's computer info about name, model and serial number
 $name = (Get-WmiObject win32_computersystem).Name
 $model = (Get-WmiObject win32_computersystem).model
 $ST = (Get-WmiObject win32_bios).SerialNumber
-
-if ($later)
-{ $ST = 'Comp ST: ' + $ST }
  
 #outputs info for the user to input for registration
 #auto attatches to clipboard for pasting
 
 #if there was a dock
-if ($macwired.name -match "real") {
+if ($dockQuestion -match "y") {
     Write-Host `n"********************Dock Mac Address*******************"`n
 }
 #if it's a desktop/ no dock 
 else {
     Write-Host `n"********************Wired Mac Address*************************"`n
 }
-$Clip = "$macDoc,$ip,ADCOMDSS,$name; Wired; $dockType$dockST$model; $ST; $ipd$info"
+$Clip = "$macDoc,$ip,ADCOMDSS,Computername: $name; Model: $model; SN # $ST; Wired; $ipString$info"
 
 Write-Host "$Clip"`n
  
@@ -222,7 +190,7 @@ Set-Clipboard -Value $Clip
 if ($deviceType -eq "l") {
     Write-Host `n"*******************Wireless Mac Address********************"`n
     
-    $Wireless = "$WirelessMac,,ADCOMDSS,$name; Wireless; $model; $ST; $ipd$info"
+    $Wireless = "$WirelessMac,,ADCOMDSS,Computername: $name, Model: $model, SN # $ST, Wireless. $ipString$info"
 
     Write-Host $Wireless`n
 
@@ -230,7 +198,7 @@ if ($deviceType -eq "l") {
     if ($macwired.name -match "real" -and $macEth) {
         Write-Host `n"********************Wired Mac Address*************************"`n
 
-        $wired = "$macEth,,ADCOMDSS,$name; Wired; $model; $ST; $ipd$info"
+        $wired = "$macEth,,ADCOMDSS,Computername: $name; Wired; Model: $model; SN # $ST ; $ipString$info"
     
         Write-Host $wired`n
 
