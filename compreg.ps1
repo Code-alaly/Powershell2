@@ -64,7 +64,7 @@ while ($true) {
 #Testing
 
 $trim = whoami.exe
-$trim.ToString()
+$trim.ToString() | Out-Null
 $tmpstring = $trim.Replace("-wa","")  
 $your_name=$tmpstring.Replace("ad\","")
 #function that goes through the page to find the right element for the data required
