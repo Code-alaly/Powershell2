@@ -61,12 +61,10 @@ while ($true) {
     }
 }
 
-#Testing
+#Grabs your netid to find your full name from the page 
 
-$trim = whoami.exe
-$trim.ToString() | Out-Null
-$tmpstring = $trim.Replace("-wa","")  
-$your_name=$tmpstring.Replace("ad\","")
+$your_name= (whoami.exe | Out-String).Replace("ad\","") -replace "-wa",""
+
 #function that goes through the page to find the right element for the data required
 
 Write-Output "`n<<<`tIP Address Assignment`t>>>`n"
