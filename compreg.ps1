@@ -8,7 +8,7 @@
 #powershell2 is folder this repository is on. 
 
 
-#now to commit this to the master git. 
+
 Write-Output "DSS Mobile Access Registration Powershell Script"
 
 #Prompts user to enter device type for registration purposes.
