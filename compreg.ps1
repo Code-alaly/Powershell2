@@ -3,7 +3,7 @@
 # Description: Device-agnostic MAC registration for DSS-supported Laptops and Desktops 
 # Author: Daniel Dubisz
 # Collaborators: Benedict Yi Chua 
-# Last Updated 09-19-2019
+# Last Updated 09-30-2019
 
 #powershell2 is folder this repository is on. 
 
