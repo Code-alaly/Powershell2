@@ -123,7 +123,7 @@ $info = "For $UCINetID in $dep; at $loc. Inputted by $me."
 
 #removes un-needed output by sending it to tmp file and deleting it
 
-Invoke-WebRequest 'http://apps.oit.uci.edu/mobileaccess/admin/mac/add_bulk.php' | Out-File "Recycle Bin"
+Invoke-WebRequest 'http://apps.oit.uci.edu/mobileaccess/admin/mac/add_bulk.php' | Out-File "Recycle Bin" -ErrorAction SilentlyContinue
 
 if (!(Get-Process -Name iexplore -ErrorAction SilentlyContinue)) {
     Start-Process 'C:\Program Files (x86)\Google\Chrome\Application\chrome.exe' -ArgumentList 'http://apps.oit.uci.edu/mobileaccess/admin/mac/add_bulk.php'
