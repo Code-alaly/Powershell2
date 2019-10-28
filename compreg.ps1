@@ -1,4 +1,3 @@
-
 # Script Name: RegisterMAC
 # Description: Device-agnostic MAC registration for DSS-supported Laptops and Desktops 
 # Author: Daniel Dubisz
@@ -40,7 +39,7 @@ while ($true) {
 
     if ($userRegistration -eq "y") {
         do {
-            $UCINetID = Read-Host -prompt "`nEnter the user\'s UCINetID: "
+            $UCINetID = Read-Host -prompt "`nEnter the user's UCINetID: "
             $url = 'https://new-psearch.ics.uci.edu/people/' + $UCINetID
             $request = Invoke-WebRequest $url
             if ($request.AllElements.Count -le 70) {
@@ -87,7 +86,7 @@ while ($true) {
             Write-Host "Looks like that wasn't a valid IP Address, go ahead and try again"
         }
         else {
-            $ipString = $ip + '; '
+            $ipString = "IP: " + $ip + ","
             break
         }
     }
@@ -118,18 +117,10 @@ $UCINetID = userinfo -trait UCInetID -person $UCINetID
 $dep = userinfo -trait Department -person $UCINetID
 $loc = userinfo -trait Address -person $UCINetID
 
-$info = "For $UCINetID in $dep; at $loc. Inputted by $me."
-
-#opens up a page for adding bulk ips, so the user can log in and input the information
-#has redundency in case internet explorer doesn't work. 
-
-#removes un-needed output by sending it to tmp file and deleting it
-
-Invoke-WebRequest 'http://apps.oit.uci.edu/mobileaccess/admin/mac/add_bulk.php' | Out-File "Recycle Bin"
-
-if (!(Get-Process -Name iexplore -ErrorAction SilentlyContinue)) {
-    Start-Process 'C:\Program Files (x86)\Google\Chrome\Application\chrome.exe' -ArgumentList 'http://apps.oit.uci.edu/mobileaccess/admin/mac/add_bulk.php'
+if ($userRegistration -eq "y") {
+    $info = "For $UCINetID in $dep; at $loc. Inputted by $me."
 }
+elif($userRegistration -eq "n") { $info = "Inputted by $me." }
 
 #get's mac address of ethernet adapter that's active and isn't a virtual connection.
 
@@ -147,22 +138,60 @@ if ($deviceType -eq "l") {
 
     $connections = Get-NetAdapter 
 
-    $WirelessMac = ($connections | Where-Object Name -Match Wireless).MacAddress
+    $WirelessMac = $connections | Where-Object { ( $_.Name -match "Wireless" -or $_.Name -match "Wi-fi") }
+
+    $WirelessMac = $WirelessMac.MacAddress
 
     $laptopMacAddresses = $connections | Where-Object Name -Match Ethernet | Where-Object InterfaceDescription -NotMatch "Cisco AnyConnect"
 
     $dockQuestion = Read-Host -prompt "`nDo you have A Doc to register? If so, please make sure it is connected [y/n]"
 
     if ($dockQuestion -eq 'y') {
+        
+        $dock? = " Docking station"
 
-        if (($laptopMacAddresses) -ge 2 ) {
+        if ($laptopMacAddresses.Count -ge 2 ) {
+
+
             $macDoc = ($laptopMacAddresses | Where-Object Status -Match Up).MacAddress
             $macEth = ($laptopMacAddresses | Where-Object Status -Match Disconnected).MacAddress
+
+            while ($true) {
+                $ip_laptop = Read-Host -Prompt "Do you want to register a different ip for the ethernet MAC address? (if no, just leave blank and press enter)"
+                if (($null -eq $ip_laptop) -or ($ip_laptop -eq '')) {
+                    $ip_wired_string = ''
+                    break
+                }
+                else {
+                    #Checks if the IP address is valid or not
+                    $IpCheck = "((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)"
+                    if ($ip_laptop -notmatch $IpCheck) {
+                        Write-Host "Looks like that wasn't a valid IP Address, go ahead and try again"
+                    }
+                    else {
+                        $ip_wired_string = $ip_laptop + '; '
+                        break
+                    }
+                }
+            }
         }
        
     }
 }
 
+#opens up a page for adding bulk ips, so the user can log in and input the information
+#has redundency in case internet explorer doesn't work. 
+
+#removes un-needed output by sending it to tmp file and deleting it
+$tempf = New-TemporaryFile
+
+Invoke-WebRequest 'http://apps.oit.uci.edu/mobileaccess/admin/mac/add_bulk.php' | Out-File $tempf
+
+Remove-Item $tempf 
+
+if (!(Get-Process -Name iexplore -ErrorAction SilentlyContinue)) {
+    Start-Process 'C:\Program Files (x86)\Google\Chrome\Application\chrome.exe' -ArgumentList 'http://apps.oit.uci.edu/mobileaccess/admin/mac/add_bulk.php'
+}
 
 #Grab's computer info about name, model and serial number
 $name = (Get-WmiObject win32_computersystem).Name
@@ -180,7 +209,7 @@ if ($dockQuestion -match "y") {
 else {
     Write-Host `n"********************Wired Mac Address*************************"`n
 }
-$Clip = "$macDoc,$ip,ADCOMDSS,Computername: $name; Model: $model; SN # $ST; Wired; $ipString$info"
+$Clip = "$macDoc,$ip,ADCOMDSS,Computername: $name, Model: $model, SN # $ST,$dock? Wired. $ipString$info"
 
 Write-Host "$Clip"`n
  
@@ -195,10 +224,10 @@ if ($deviceType -eq "l") {
     Write-Host $Wireless`n
 
     #if there's a dock, and an ethernet port
-    if ($macwired.name -match "real" -and $macEth) {
+    if (($laptopMacAddresses.Count -ge 2) -and $macEth) {
         Write-Host `n"********************Wired Mac Address*************************"`n
 
-        $wired = "$macEth,,ADCOMDSS,Computername: $name; Wired; Model: $model; SN # $ST ; $ipString$info"
+        $wired = "$macEth,$ip_wired_string,ADCOMDSS,Computername: $name; Wired; Model: $model; SN # $ST ; $ip_wired_string$info"
     
         Write-Host $wired`n
 
